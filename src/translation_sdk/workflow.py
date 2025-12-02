@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Callable
 from dataclasses import dataclass, field
 import logging
 import json
@@ -142,12 +142,19 @@ class TranslationWorkflow:
             rules += "\n7. Number Formatting: Use comma ',' for decimals (e.g. 0.008 -> 0,008). CRITICAL: Do NOT change dots '.' in serial numbers, section numbers (e.g. 1.1, 2.1.3), version numbers, or model codes."
         return rules
 
-    def run(self, segments: List[TranslationSegment], source_lang: str = "auto", target_lang: str = "Chinese") -> Tuple[List[WorkflowResult], Dict]:
+    def run(self, segments: List[TranslationSegment], source_lang: str = "auto", target_lang: str = "Chinese", progress_callback: Callable[[float, str], None] = None) -> Tuple[List[WorkflowResult], Dict]:
         self._load_cache()
         results_map: Dict[str, WorkflowResult] = {
             seg.id: WorkflowResult(segment_id=seg.id, original=seg.original_text) 
             for seg in segments
         }
+        
+        def _update_progress(stage_start, stage_end, current, total, desc):
+            if progress_callback:
+                # Calculate overall progress
+                # stage_start + (current / total) * (stage_end - stage_start)
+                progress = stage_start + (current / total) * (stage_end - stage_start)
+                progress_callback(progress, desc)
         
         
         # Get concurrency settings (default 32)
@@ -156,8 +163,9 @@ class TranslationWorkflow:
         workers_opt = self.concurrency_config.get("optimization", 32)
         workers_eval2 = self.concurrency_config.get("evaluation_2", 32)
         
-        # Stage 1: Translation
+        # Stage 1: Translation (0.0 - 0.3)
         print(f"\n[Stage 1/5] Translating segments (Source: {source_lang}, Target: {target_lang})...")
+        _update_progress(0.0, 0.3, 0, len(segments), "Starting Translation...")
         with ThreadPoolExecutor(max_workers=workers_trans) as executor:
             future_to_seg = {}
             for seg in segments:
@@ -181,7 +189,10 @@ class TranslationWorkflow:
                 future = executor.submit(self._translate_task, seg, source_lang, target_lang)
                 future_to_seg[future] = seg
 
+            completed = 0
             for future in tqdm(as_completed(future_to_seg), total=len(future_to_seg), colour='green', desc="Translation"):
+                completed += 1
+                _update_progress(0.0, 0.3, completed, len(segments), f"Translating {completed}/{len(segments)}")
                 seg = future_to_seg[future]
                 try:
                     trans_text, usage, prompt, raw_response = future.result()
@@ -214,6 +225,7 @@ class TranslationWorkflow:
         
         if failed_segments:
             print(f"\n[Stage 1.5/5] Repairing {len(failed_segments)} failed translations...")
+            _update_progress(0.3, 0.35, 0, len(failed_segments), "Repairing failed translations...")
             with ThreadPoolExecutor(max_workers=workers_trans) as executor:
                 future_to_seg = {}
                 for seg in failed_segments:
@@ -221,7 +233,10 @@ class TranslationWorkflow:
                     future = executor.submit(self._translate_task, seg, source_lang, target_lang)
                     future_to_seg[future] = seg
                 
+                completed = 0
                 for future in tqdm(as_completed(future_to_seg), total=len(future_to_seg), colour='red', desc="Repair"):
+                    completed += 1
+                    _update_progress(0.3, 0.35, completed, len(failed_segments), f"Repairing {completed}/{len(failed_segments)}")
                     seg = future_to_seg[future]
                     try:
                         trans_text, usage, prompt, raw_response = future.result()
@@ -239,8 +254,9 @@ class TranslationWorkflow:
             
             self._save_cache()
 
-        # Stage 2: Evaluation 1
+        # Stage 2: Evaluation 1 (0.35 - 0.55)
         print("\n[Stage 2/5] Evaluating initial translations...")
+        _update_progress(0.35, 0.55, 0, len(segments), "Starting Evaluation 1...")
         with ThreadPoolExecutor(max_workers=workers_eval1) as executor:
             future_to_seg = {}
             for seg in segments:
@@ -252,7 +268,10 @@ class TranslationWorkflow:
                 future = executor.submit(self._evaluate_task, results_map[seg.id].original, results_map[seg.id].translation_a, source_lang, target_lang)
                 future_to_seg[future] = seg
 
+            completed = 0
             for future in tqdm(as_completed(future_to_seg), total=len(future_to_seg), colour='blue', desc="Evaluation 1"):
+                completed += 1
+                _update_progress(0.35, 0.55, completed, len(segments), f"Evaluating {completed}/{len(segments)}")
                 seg = future_to_seg[future]
                 try:
                     eval_res, usage, prompt, raw_response = future.result()
@@ -263,8 +282,9 @@ class TranslationWorkflow:
                 except Exception as e:
                     logger.error(f"Evaluation 1 failed for {seg.id}: {e}")
 
-        # Stage 3: Optimization
+        # Stage 3: Optimization (0.55 - 0.75)
         print("\n[Stage 3/5] Optimizing translations...")
+        _update_progress(0.55, 0.75, 0, len(segments), "Starting Optimization...")
         with ThreadPoolExecutor(max_workers=workers_opt) as executor:
             future_to_seg = {}
             for seg in segments:
@@ -286,7 +306,10 @@ class TranslationWorkflow:
                 )
                 future_to_seg[future] = seg
 
+            completed = 0
             for future in tqdm(as_completed(future_to_seg), total=len(future_to_seg), colour='yellow', desc="Optimization"):
+                completed += 1
+                _update_progress(0.55, 0.75, completed, len(segments), f"Optimizing {completed}/{len(segments)}")
                 seg = future_to_seg[future]
                 try:
                     opt_text, usage, prompt, raw_response = future.result()
@@ -297,8 +320,9 @@ class TranslationWorkflow:
                 except Exception as e:
                     logger.error(f"Optimization failed for {seg.id}: {e}")
 
-        # Stage 4: Comparative Evaluation
+        # Stage 4: Comparative Evaluation (0.75 - 0.95)
         print("\n[Stage 4/5] Comparative Evaluation (A vs C)...")
+        _update_progress(0.75, 0.95, 0, len(segments), "Starting Comparative Evaluation...")
         with ThreadPoolExecutor(max_workers=workers_eval2) as executor:
             future_to_seg = {}
             for seg in segments:
@@ -321,7 +345,10 @@ class TranslationWorkflow:
                 )
                 future_to_seg[future] = seg
 
+            completed = 0
             for future in tqdm(as_completed(future_to_seg), total=len(future_to_seg), colour='magenta', desc="Final Evaluation"):
+                completed += 1
+                _update_progress(0.75, 0.95, completed, len(segments), f"Comparing {completed}/{len(segments)}")
                 seg = future_to_seg[future]
                 try:
                     eval_a, eval_c, usage, prompt, raw_response = future.result()
@@ -333,8 +360,9 @@ class TranslationWorkflow:
                 except Exception as e:
                     logger.error(f"Comparative evaluation failed for {seg.id}: {e}")
 
-        # Stage 5: Selection
+        # Stage 5: Selection (0.95 - 1.0)
         print("\n[Stage 5/5] Selecting best translations...")
+        _update_progress(0.95, 1.0, 0, 1, "Finalizing...")
         final_results = []
         for seg in segments:
             res = results_map[seg.id]

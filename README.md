@@ -1,5 +1,7 @@
 # Word Document Translation SDK
 
+[English](README.md) | [中文](README_zh.md)
+
 A Python SDK for translating Word documents (`.docx`) using a multi-model workflow (Translate -> Evaluate -> Optimize -> Select).
 
 ## Features
@@ -148,6 +150,28 @@ For easier usage, you can configure your models in `model_config.json` and use t
     ```bash
     uv run python translate.py --input-file "path/to/document.docx" --target-lang "Chinese"
     ```
+
+### Web Interface (GUI)
+
+You can launch a user-friendly web interface to run translations without using the command line arguments.
+
+**Launch Command:**
+```bash
+# Using the test script
+uv run python translate.py --gui
+
+# OR using the main SDK module
+uv run python -m src.translation_sdk.main --gui
+```
+
+**Features:**
+-   **File Upload**: Drag and drop `.docx` files.
+-   **Language Selection**: Select source (auto-detect supported) and target languages from a dropdown.
+-   **Settings (JSON)**: Directly edit the `model_config.json` content in the "Settings" tab to configure:
+    -   **Models**: Provider, API Key, Base URL, and Model Name for each stage (Translation, Evaluation, Optimization).
+    -   **Concurrency**: Number of parallel workers for each stage.
+-   **Progress Tracking**: Real-time progress bars for translation, evaluation, and optimization stages.
+-   **Downloads**: Download all generated files (Translated Doc, Bilingual Doc, Reports, JSON Logs) directly from the browser.
 
 ### Python SDK
 

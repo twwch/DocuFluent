@@ -12,7 +12,6 @@ class TranslationSDK:
     def __init__(self, 
                  translation_config: dict,
                  evaluation_config: dict,
-                 evaluation_config: dict,
                  optimization_config: dict,
                  concurrency_config: dict = None):
         
@@ -22,7 +21,7 @@ class TranslationSDK:
         
         self.workflow = TranslationWorkflow(self.translator, self.evaluator, self.optimizer, concurrency_config)
 
-    def translate_document(self, input_path: str, output_dir: str, source_lang: str = "auto", target_lang: str = "Chinese"):
+    def translate_document(self, input_path: str, output_dir: str, source_lang: str = "auto", target_lang: str = "Chinese", progress_callback=None):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
             
@@ -35,7 +34,7 @@ class TranslationSDK:
         
         # 2. Run Workflow
         logger.info(f"Starting translation workflow (Source: {source_lang}, Target: {target_lang})...")
-        results, usage_report = self.workflow.run(segments, source_lang=source_lang, target_lang=target_lang)
+        results, usage_report = self.workflow.run(segments, source_lang=source_lang, target_lang=target_lang, progress_callback=progress_callback)
         
         # 3. Apply Translations
         final_translations = {r.segment_id: r.final_translation for r in results}
@@ -112,10 +111,17 @@ class TranslationSDK:
         
         logger.info("Translation completed successfully.")
 
+def launch_ui():
+    """Launch the Gradio User Interface."""
+    from .ui import create_interface
+    demo = create_interface()
+    demo.launch()
+
 def main():
     parser = argparse.ArgumentParser(description="Word Document Translation SDK")
-    parser.add_argument("input_file", help="Path to the input .docx file")
+    parser.add_argument("input_file", nargs='?', help="Path to the input .docx file")
     parser.add_argument("--output-dir", default="output", help="Directory to save outputs")
+    parser.add_argument("--gui", action="store_true", help="Launch Gradio GUI")
     parser.add_argument("--provider", default="mock", help="Default LLM provider (openai, mock)")
     parser.add_argument("--api-key", help="Default API Key")
     parser.add_argument("--base-url", help="Default Base URL (or Azure Endpoint)")
@@ -131,6 +137,15 @@ def main():
     parser.add_argument("--concurrency-eval2", type=int, default=32, help="Concurrency for evaluation 2 (default: 32)")
     
     args = parser.parse_args()
+    
+    if args.gui:
+        launch_ui()
+        return
+
+    if not args.input_file:
+        parser.print_help()
+        print("\nError: input_file is required unless --gui is specified.")
+        return
     
     setup_logging()
     
