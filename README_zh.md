@@ -253,3 +253,12 @@ SDK 在输出目录中生成以下文件:
 3.  **一致性 (Consistency)**: 术语和风格的一致性。
 4.  **术语 (Terminology)**: 特定领域术语的准确性。
 5.  **完整性 (Completeness)**: 是否所有内容都已翻译。
+
+## 许可协议 (License)
+
+本项目采用 **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** 许可协议。
+
+- **非商业用途**: 您可以自由使用、修改和分发本软件用于非商业目的。
+- **商业用途**: 本软件的商业使用需要作者的明确授权。如需商业许可，请联系作者。
+
+详情请参阅 [LICENSE](LICENSE) 文件。

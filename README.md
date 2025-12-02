@@ -255,3 +255,12 @@ The translation is evaluated on 5 dimensions (0-10 score):
 3.  **Consistency**: Consistency of terminology and style.
 4.  **Terminology**: Accuracy of specific domain terms.
 5.  **Completeness**: Whether all content is translated.
+
+## License
+
+This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** license.
+
+- **Non-Commercial Use**: You are free to use, modify, and distribute this software for non-commercial purposes.
+- **Commercial Use**: Commercial use of this software requires explicit authorization from the author. Please contact the author for commercial licensing inquiries.
+
+See the [LICENSE](LICENSE) file for details.
