@@ -236,7 +236,7 @@ class TranslationWorkflow:
                     results_map[seg.id].eval_a = EvaluationResult(10,10,10,10,10,"Simple segment, no evaluation needed.")
                     continue
                 
-                future = executor.submit(self._evaluate_task, results_map[seg.id].original, results_map[seg.id].translation_a)
+                future = executor.submit(self._evaluate_task, results_map[seg.id].original, results_map[seg.id].translation_a, source_lang, target_lang)
                 future_to_seg[future] = seg
 
             for future in tqdm(as_completed(future_to_seg), total=len(future_to_seg), colour='blue', desc="Evaluation 1"):
@@ -301,7 +301,9 @@ class TranslationWorkflow:
                     self._evaluate_comparative_task, 
                     results_map[seg.id].original, 
                     results_map[seg.id].translation_a,
-                    results_map[seg.id].translation_c
+                    results_map[seg.id].translation_c,
+                    source_lang,
+                    target_lang
                 )
                 future_to_seg[future] = seg
 
@@ -344,18 +346,18 @@ class TranslationWorkflow:
         return final_results, usage_report
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-    def _evaluate_comparative_task(self, original: str, trans_a: str, trans_c: str) -> Tuple[EvaluationResult, EvaluationResult, GenerationResult, str, str]:
-        prompt = f"""Evaluate the following two translations on 5 dimensions: Accuracy, Fluency, Consistency, Terminology Accuracy, Completeness.
+    def _evaluate_comparative_task(self, original: str, trans_a: str, trans_c: str, source_lang: str, target_lang: str) -> Tuple[EvaluationResult, EvaluationResult, GenerationResult, str, str]:
+        prompt = f"""Evaluate the following two translations from {source_lang} to {target_lang} on 5 dimensions: Accuracy, Fluency, Consistency, Terminology Accuracy, Completeness.
  
-Original: {original}
+Original ({source_lang}): {original}
  
-Model A Translation: {trans_a}
+Model A Translation ({target_lang}): {trans_a}
  
-Model C Translation: {trans_c}
+Model C Translation ({target_lang}): {trans_c}
  
 Provide a score (0-10) for each dimension and suggestions for improvement for BOTH models.
 IMPORTANT: Provide suggestions in Chinese.
-CRITICAL: If a translation is identical to the Original (and the Original is not just a number/symbol/proper noun), it is a FAILURE. Give it a score of 0 for Accuracy and Completeness, and note "Untranslated" in suggestions.
+CRITICAL: Verify that the translation is indeed in {target_lang}. If a translation is identical to the Original (and the Original is not just a number/symbol/proper noun), or if it is NOT in {target_lang}, it is a FAILURE. Give it a score of 0 for Accuracy and Completeness, and note "Untranslated" or "Wrong Language" in suggestions.
 
 Return JSON format: 
 {{
@@ -440,14 +442,14 @@ Text: {segment.original_text}"""
         return text, result, prompt, result.text
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-    def _evaluate_task(self, original: str, translation: str) -> Tuple[EvaluationResult, GenerationResult, str, str]:
-        prompt = f"""Evaluate the following translation on 5 dimensions: Accuracy, Fluency, Consistency, Terminology Accuracy, Completeness.
-Original: {original}
-Translation: {translation}
+    def _evaluate_task(self, original: str, translation: str, source_lang: str, target_lang: str) -> Tuple[EvaluationResult, GenerationResult, str, str]:
+        prompt = f"""Evaluate the following translation from {source_lang} to {target_lang} on 5 dimensions: Accuracy, Fluency, Consistency, Terminology Accuracy, Completeness.
+Original ({source_lang}): {original}
+Translation ({target_lang}): {translation}
 
 Provide a score (0-10) for each dimension and suggestions for improvement.
 IMPORTANT: Provide suggestions in Chinese.
-CRITICAL: If the Translation is identical to the Original (and the Original is not just a number/symbol/proper noun), it is a FAILURE. Give it a score of 0 for Accuracy and Completeness, and note "Untranslated" in suggestions.
+CRITICAL: Verify that the translation is indeed in {target_lang}. If the Translation is identical to the Original (and the Original is not just a number/symbol/proper noun), or if it is NOT in {target_lang}, it is a FAILURE. Give it a score of 0 for Accuracy and Completeness, and note "Untranslated" or "Wrong Language" in suggestions.
 
 Return JSON format: 
 {{
