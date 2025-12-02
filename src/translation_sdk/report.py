@@ -136,7 +136,7 @@ class ReportGenerator:
             
             meta_data = [
                 [f"源语言: {source_lang}", f"目标语言: {target_lang}"],
-                [f"日期: {date_str}", f"任务ID: {task_id}"]
+                [f"日期: {date_str}", ""]
             ]
             meta_table = Table(meta_data, colWidths=[8*cm, 8*cm])
             meta_table.setStyle(TableStyle([
