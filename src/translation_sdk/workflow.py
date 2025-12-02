@@ -62,10 +62,11 @@ class TokenUsage:
         self.total_tokens += other.total_tokens
 
 class TranslationWorkflow:
-    def __init__(self, translator: LLMBase, evaluator: LLMBase, optimizer: LLMBase):
+    def __init__(self, translator: LLMBase, evaluator: LLMBase, optimizer: LLMBase, concurrency_config: Dict[str, int] = None):
         self.translator = translator
         self.evaluator = evaluator
         self.optimizer = optimizer
+        self.concurrency_config = concurrency_config or {}
         self.total_usage = TokenUsage()
         self.stage_usage = {
             "translation": TokenUsage(),
@@ -148,11 +149,16 @@ class TranslationWorkflow:
             for seg in segments
         }
         
-        max_workers = 32
+        
+        # Get concurrency settings (default 32)
+        workers_trans = self.concurrency_config.get("translation", 32)
+        workers_eval1 = self.concurrency_config.get("evaluation_1", 32)
+        workers_opt = self.concurrency_config.get("optimization", 32)
+        workers_eval2 = self.concurrency_config.get("evaluation_2", 32)
         
         # Stage 1: Translation
         print(f"\n[Stage 1/5] Translating segments (Source: {source_lang}, Target: {target_lang})...")
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=workers_trans) as executor:
             future_to_seg = {}
             for seg in segments:
                 # 1. Skip simple segments
@@ -208,7 +214,7 @@ class TranslationWorkflow:
         
         if failed_segments:
             print(f"\n[Stage 1.5/5] Repairing {len(failed_segments)} failed translations...")
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            with ThreadPoolExecutor(max_workers=workers_trans) as executor:
                 future_to_seg = {}
                 for seg in failed_segments:
                     # Retry translation
@@ -235,7 +241,7 @@ class TranslationWorkflow:
 
         # Stage 2: Evaluation 1
         print("\n[Stage 2/5] Evaluating initial translations...")
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=workers_eval1) as executor:
             future_to_seg = {}
             for seg in segments:
                 # Skip if skipped or cached in Stage 1 (Optional: could re-eval cached, but let's save tokens)
@@ -259,7 +265,7 @@ class TranslationWorkflow:
 
         # Stage 3: Optimization
         print("\n[Stage 3/5] Optimizing translations...")
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=workers_opt) as executor:
             future_to_seg = {}
             for seg in segments:
                 if results_map[seg.id].selected_model in ["Skipped (Simple)"]:
@@ -293,7 +299,7 @@ class TranslationWorkflow:
 
         # Stage 4: Comparative Evaluation
         print("\n[Stage 4/5] Comparative Evaluation (A vs C)...")
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=workers_eval2) as executor:
             future_to_seg = {}
             for seg in segments:
                 if results_map[seg.id].selected_model in ["Skipped (Simple)"]:

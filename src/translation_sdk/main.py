@@ -12,13 +12,15 @@ class TranslationSDK:
     def __init__(self, 
                  translation_config: dict,
                  evaluation_config: dict,
-                 optimization_config: dict):
+                 evaluation_config: dict,
+                 optimization_config: dict,
+                 concurrency_config: dict = None):
         
         self.translator = LLMFactory.create(**translation_config)
         self.evaluator = LLMFactory.create(**evaluation_config)
         self.optimizer = LLMFactory.create(**optimization_config)
         
-        self.workflow = TranslationWorkflow(self.translator, self.evaluator, self.optimizer)
+        self.workflow = TranslationWorkflow(self.translator, self.evaluator, self.optimizer, concurrency_config)
 
     def translate_document(self, input_path: str, output_dir: str, source_lang: str = "auto", target_lang: str = "Chinese"):
         if not os.path.exists(output_dir):
@@ -123,6 +125,10 @@ def main():
     parser.add_argument("--model-c", default="gpt-4", help="Model for optimization")
     parser.add_argument("--source-lang", default="auto", help="Source language (default: auto)")
     parser.add_argument("--target-lang", default="Chinese", help="Target language (default: Chinese)")
+    parser.add_argument("--concurrency-trans", type=int, default=32, help="Concurrency for translation (default: 32)")
+    parser.add_argument("--concurrency-eval1", type=int, default=32, help="Concurrency for evaluation 1 (default: 32)")
+    parser.add_argument("--concurrency-opt", type=int, default=32, help="Concurrency for optimization (default: 32)")
+    parser.add_argument("--concurrency-eval2", type=int, default=32, help="Concurrency for evaluation 2 (default: 32)")
     
     args = parser.parse_args()
     
@@ -146,7 +152,17 @@ def main():
     optimization_config = base_config.copy()
     optimization_config["model"] = args.model_c
     
-    sdk = TranslationSDK(translation_config, evaluation_config, optimization_config)
+    optimization_config = base_config.copy()
+    optimization_config["model"] = args.model_c
+    
+    concurrency_config = {
+        "translation": args.concurrency_trans,
+        "evaluation_1": args.concurrency_eval1,
+        "optimization": args.concurrency_opt,
+        "evaluation_2": args.concurrency_eval2
+    }
+    
+    sdk = TranslationSDK(translation_config, evaluation_config, optimization_config, concurrency_config)
     
     sdk.translate_document(args.input_file, args.output_dir, source_lang=args.source_lang, target_lang=args.target_lang)
 

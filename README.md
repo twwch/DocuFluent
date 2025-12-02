@@ -134,6 +134,12 @@ For easier usage, you can configure your models in `model_config.json` and use t
             "api_key": "sk-...",
             "base_url": "https://api.openai.com/v1",
             "model": "gpt-4"
+        },
+        "concurrency_config": {
+            "translation": 32,
+            "evaluation_1": 32,
+            "optimization": 32,
+            "evaluation_2": 32
         }
     }
     ```

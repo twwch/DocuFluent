@@ -42,7 +42,10 @@ def main():
     
     try:
         sdk = TranslationSDK(
-            **model_config
+            translation_config=model_config.get("translation_config", {}),
+            evaluation_config=model_config.get("evaluation_config", {}),
+            optimization_config=model_config.get("optimization_config", {}),
+            concurrency_config=model_config.get("concurrency_config", {})
         )
         sdk.translate_document(args.input_file, args.output_dir, target_lang=args.target_lang)
         

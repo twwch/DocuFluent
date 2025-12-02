@@ -67,8 +67,7 @@ class OpenAILLM(LLMBase):
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=messages,
-                temperature=0.3
+                messages=messages
             )
             usage = response.usage
             return GenerationResult(
@@ -100,8 +99,7 @@ class AzureOpenAILLM(LLMBase):
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=messages,
-                temperature=0.3
+                messages=messages
             )
             usage = response.usage
             return GenerationResult(
