@@ -19,40 +19,40 @@ A Python SDK for translating Word documents (`.docx`) using a multi-model workfl
 
 ```mermaid
 graph TD
-    Start[Start: Input Document] --> Extract[Extract Segments]
-    Extract --> Stage1[Stage 1: Initial Translation (Model A)]
-    Stage1 --> CheckSimple{Is Simple Segment?}
-    CheckSimple -- Yes --> Skip[Skip Translation]
-    CheckSimple -- No --> CheckCache{In Cache?}
-    CheckCache -- Yes --> UseCache[Use Cached Translation]
-    CheckCache -- No --> Translate[Call Model A]
-    Translate --> Stage1_5[Stage 1.5: Repair Checks]
+    Start["Start: Input Document"] --> Extract["Extract Segments"]
+    Extract --> Stage1["Stage 1: Initial Translation (Model A)"]
+    Stage1 --> CheckSimple{"Is Simple Segment?"}
+    CheckSimple -- Yes --> Skip["Skip Translation"]
+    CheckSimple -- No --> CheckCache{"In Cache?"}
+    CheckCache -- Yes --> UseCache["Use Cached Translation"]
+    CheckCache -- No --> Translate["Call Model A"]
+    Translate --> Stage1_5["Stage 1.5: Repair Checks"]
     UseCache --> Stage1_5
     
-    Stage1_5 --> CheckFail{Translation == Original?}
-    CheckFail -- Yes --> Repair[Retry Translation]
+    Stage1_5 --> CheckFail{"Translation == Original?"}
+    CheckFail -- Yes --> Repair["Retry Translation"]
     CheckFail -- No --> Stage2
-    Repair --> Stage2[Stage 2: Evaluation 1 (Model B)]
+    Repair --> Stage2["Stage 2: Evaluation 1 (Model B)"]
     Skip --> Stage2
     
-    Stage2 --> EvalA[Evaluate Model A]
-    EvalA --> Stage3[Stage 3: Optimization (Model C)]
+    Stage2 --> EvalA["Evaluate Model A"]
+    EvalA --> Stage3["Stage 3: Optimization (Model C)"]
     
-    Stage3 --> CheckScore{Score >= 9.5?}
-    CheckScore -- Yes --> SkipOpt[Skip Optimization]
-    CheckScore -- No --> Optimize[Call Model C with Suggestions]
+    Stage3 --> CheckScore{"Score >= 9.5?"}
+    CheckScore -- Yes --> SkipOpt["Skip Optimization"]
+    CheckScore -- No --> Optimize["Call Model C with Suggestions"]
     
     SkipOpt --> Stage4
-    Optimize --> Stage4[Stage 4: Comparative Evaluation (Model B)]
+    Optimize --> Stage4["Stage 4: Comparative Evaluation (Model B)"]
     
-    Stage4 --> EvalComp[Evaluate A vs C]
-    EvalComp --> Stage5[Stage 5: Selection]
+    Stage4 --> EvalComp["Evaluate A vs C"]
+    EvalComp --> Stage5["Stage 5: Selection"]
     
-    Stage5 --> Select{Score C > Score A?}
-    Select -- Yes --> FinalC[Select Model C]
-    Select -- No --> FinalA[Select Model A]
+    Stage5 --> Select{"Score C > Score A?"}
+    Select -- Yes --> FinalC["Select Model C"]
+    Select -- No --> FinalA["Select Model A"]
     
-    FinalC --> Output[Generate Documents & Reports]
+    FinalC --> Output["Generate Documents & Reports"]
     FinalA --> Output
     
     style Start fill:#f9f,stroke:#333,stroke-width:2px
