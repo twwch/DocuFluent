@@ -7,9 +7,9 @@
 ## 功能特性
 
 - **多模型工作流**: 
-    - **模型 A**: 初始翻译
-    - **模型 B**: 评估（准确性、流畅性、一致性、术语、完整性）
-    - **模型 C**: 基于评估进行优化
+    - **初始翻译模型**: 初始翻译
+    - **评估模型**: 评估（准确性、流畅性、一致性、术语、完整性）
+    - **优化模型**: 基于评估进行优化
     - **选择**: 根据评分自动选择最佳翻译
 - **格式保留**: 保留段落样式、表格和公式。
 - **严格语言强制**: 防止意外翻译成英语，确保严格遵守目标语言。
@@ -91,9 +91,9 @@ uv run python -m src.translation_sdk.main input.docx \
     --base-url https://your-resource.openai.azure.com/ \
     --api-key your-azure-key \
     --api-version 2023-05-15 \
-    --model-a gpt-35-turbo-deployment \
-    --model-b gpt-4-deployment \
-    --model-c gpt-4-deployment \
+    --model-translation gpt-35-turbo-deployment \
+    --model-evaluation gpt-4-deployment \
+    --model-optimization gpt-4-deployment \
     --source-lang auto \
     --target-lang "Chinese"
 ```
@@ -106,9 +106,9 @@ uv run python -m src.translation_sdk.main input.docx \
 - `--api-key`: 提供商的 API Key。
 - `--base-url`: Base URL (OpenAI) 或 Azure Endpoint (Azure)。
 - `--api-version`: API 版本 (仅限 Azure, 例如 `2023-05-15`)。
-- `--model-a`: 翻译模型/部署。
-- `--model-b`: 评估模型/部署。
-- `--model-c`: 优化模型/部署。
+- `--model-translation`: 翻译模型/部署。
+- `--model-evaluation`: 评估模型/部署。
+- `--model-optimization`: 优化模型/部署。
 - `--source-lang`: 源语言 (默认: `auto`)。
 - `--target-lang`: 目标语言 (默认: `Chinese`)。
 

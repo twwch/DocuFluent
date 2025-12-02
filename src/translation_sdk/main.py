@@ -126,9 +126,9 @@ def main():
     parser.add_argument("--api-key", help="Default API Key")
     parser.add_argument("--base-url", help="Default Base URL (or Azure Endpoint)")
     parser.add_argument("--api-version", help="Azure API Version (e.g., 2023-05-15)")
-    parser.add_argument("--model-a", default="gpt-3.5-turbo", help="Model for translation")
-    parser.add_argument("--model-b", default="gpt-4", help="Model for evaluation")
-    parser.add_argument("--model-c", default="gpt-4", help="Model for optimization")
+    parser.add_argument("--model-translation", default="gpt-3.5-turbo", help="Model for translation")
+    parser.add_argument("--model-evaluation", default="gpt-4", help="Model for evaluation")
+    parser.add_argument("--model-optimization", default="gpt-4", help="Model for optimization")
     parser.add_argument("--source-lang", default="auto", help="Source language (default: auto)")
     parser.add_argument("--target-lang", default="Chinese", help="Target language (default: Chinese)")
     parser.add_argument("--concurrency-trans", type=int, default=32, help="Concurrency for translation (default: 32)")
@@ -159,16 +159,13 @@ def main():
     
     # Create specific configs
     translation_config = base_config.copy()
-    translation_config["model"] = args.model_a
+    translation_config["model"] = args.model_translation
     
     evaluation_config = base_config.copy()
-    evaluation_config["model"] = args.model_b
+    evaluation_config["model"] = args.model_evaluation
     
     optimization_config = base_config.copy()
-    optimization_config["model"] = args.model_c
-    
-    optimization_config = base_config.copy()
-    optimization_config["model"] = args.model_c
+    optimization_config["model"] = args.model_optimization
     
     concurrency_config = {
         "translation": args.concurrency_trans,

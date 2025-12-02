@@ -7,9 +7,9 @@ A Python SDK for translating Word documents (`.docx`) using a multi-model workfl
 ## Features
 
 - **Multi-Model Workflow**: 
-    - **Model A**: Initial Translation
-    - **Model B**: Evaluation (Accuracy, Fluency, Consistency, Terminology, Completeness)
-    - **Model C**: Optimization based on evaluation
+    - **Initial Translation Model**: Initial Translation
+    - **Evaluation Model**: Evaluation (Accuracy, Fluency, Consistency, Terminology, Completeness)
+    - **Optimization Model**: Optimization based on evaluation
     - **Selection**: Automatically selects the best translation based on scores.
 - **Format Preservation**: Preserves paragraph styles, tables, and formulas.
 - **Strict Language Enforcement**: Prevents accidental translation to English and ensures strict adherence to the target language.
@@ -91,9 +91,9 @@ uv run python -m src.translation_sdk.main input.docx \
     --base-url https://your-resource.openai.azure.com/ \
     --api-key your-azure-key \
     --api-version 2023-05-15 \
-    --model-a gpt-35-turbo-deployment \
-    --model-b gpt-4-deployment \
-    --model-c gpt-4-deployment \
+    --model-translation gpt-35-turbo-deployment \
+    --model-evaluation gpt-4-deployment \
+    --model-optimization gpt-4-deployment \
     --source-lang auto \
     --target-lang "French"
 ```
@@ -106,9 +106,9 @@ uv run python -m src.translation_sdk.main input.docx \
 - `--api-key`: API key for the provider.
 - `--base-url`: Base URL (OpenAI) or Azure Endpoint (Azure).
 - `--api-version`: API Version (Azure only, e.g., `2023-05-15`).
-- `--model-a`: Model/Deployment for translation.
-- `--model-b`: Model/Deployment for evaluation.
-- `--model-c`: Model/Deployment for optimization.
+- `--model-translation`: Model/Deployment for translation.
+- `--model-evaluation`: Model/Deployment for evaluation.
+- `--model-optimization`: Model/Deployment for optimization.
 - `--source-lang`: Source language (default: `auto`).
 - `--target-lang`: Target language (default: `Chinese`).
 
