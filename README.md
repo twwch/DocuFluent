@@ -62,14 +62,24 @@ graph TD
 ```
 
 ## Installation
-
-This project uses `uv` for dependency management.
-
+ 
+You can install the SDK directly using `pip` or `uv`:
+ 
+```bash
+# Using pip
+pip install docu-fluent
+ 
+# Using uv
+uv pip install docu-fluent
+```
+ 
+Alternatively, for development:
+ 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd translation-sdk
-
+ 
 # Install dependencies
 uv sync
 ```

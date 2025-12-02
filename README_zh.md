@@ -56,14 +56,24 @@ graph TD
     
     FinalC --> Output["生成文档和报告"]
     FinalA --> Output
-    
+
     style Start fill:#f9f,stroke:#333,stroke-width:2px
     style Output fill:#f9f,stroke:#333,stroke-width:2px
 ```
 
-## 安装
+## 安装 (Installation)
 
-本项目使用 `uv` 进行依赖管理。
+您可以直接使用 `pip` 或 `uv` 安装 SDK：
+
+```bash
+# 使用 pip
+pip install docu-fluent
+
+# 使用 uv
+uv pip install docu-fluent
+```
+
+或者，用于开发：
 
 ```bash
 # 克隆仓库
