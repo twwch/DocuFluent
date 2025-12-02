@@ -279,8 +279,40 @@ class DocumentProcessor:
                 if trans.strip() == orig_text.strip():
                     return
                     
-                # Append new line
-                para.add_run("\n")
+                # Create new paragraph for translation
+                # We need to access the parent container to add a paragraph, but we want to insert it AFTER the current one.
+                # We can create a new paragraph and move it.
+                
+                # Create a new paragraph using the same style
+                new_para = doc_copy.add_paragraph(style=para.style)
+                
+                # Copy paragraph formatting
+                p_fmt = para.paragraph_format
+                np_fmt = new_para.paragraph_format
+                np_fmt.alignment = p_fmt.alignment
+                np_fmt.first_line_indent = p_fmt.first_line_indent
+                np_fmt.keep_together = p_fmt.keep_together
+                np_fmt.keep_with_next = p_fmt.keep_with_next
+                np_fmt.left_indent = p_fmt.left_indent
+                np_fmt.line_spacing = p_fmt.line_spacing
+                np_fmt.line_spacing_rule = p_fmt.line_spacing_rule
+                np_fmt.page_break_before = p_fmt.page_break_before
+                np_fmt.right_indent = p_fmt.right_indent
+                np_fmt.space_after = p_fmt.space_after
+                np_fmt.space_before = p_fmt.space_before
+                np_fmt.widow_control = p_fmt.widow_control
+                
+                # Move new_para to after para
+                para._p.addnext(new_para._p)
+                
+                # CRITICAL: Check if para has a section break (sectPr). 
+                # If so, it marks the end of the section. Inserting new_para after it puts new_para in the NEXT section.
+                # We must move the sectPr to new_para so that new_para becomes the end of the current section.
+                pPr = para._p.get_or_add_pPr()
+                sectPr = pPr.find(qn('w:sectPr'))
+                if sectPr is not None:
+                    new_pPr = new_para._p.get_or_add_pPr()
+                    new_pPr.append(sectPr)
                 
                 # Use SequenceMatcher to find common parts (formulas, numbers)
                 matcher = SequenceMatcher(None, orig_text, trans)
@@ -303,10 +335,10 @@ class DocumentProcessor:
                         for part in parts:
                             if part in math_elems:
                                 math_copy = deepcopy(math_elems[part])
-                                para._element.append(math_copy)
+                                new_para._element.append(math_copy)
                             else:
                                 if part:
-                                    run = para.add_run(part)
+                                    run = new_para.add_run(part)
                                     if text_color:
                                         run.font.color.rgb = text_color
                     
@@ -320,7 +352,7 @@ class DocumentProcessor:
                                 run = run_map[k]
                                 if run != current_run:
                                     if current_run:
-                                        new_run = para.add_run(current_text)
+                                        new_run = new_para.add_run(current_text)
                                         self._copy_run_format(current_run, new_run)
                                         if text_color:
                                             new_run.font.color.rgb = text_color
@@ -330,7 +362,7 @@ class DocumentProcessor:
                         
                         # Flush last run
                         if current_run:
-                            new_run = para.add_run(current_text)
+                            new_run = new_para.add_run(current_text)
                             self._copy_run_format(current_run, new_run)
                             if text_color:
                                 new_run.font.color.rgb = text_color
@@ -348,15 +380,16 @@ class DocumentProcessor:
                     for part in parts:
                         if part in math_elems:
                             math_copy = deepcopy(math_elems[part])
-                            para._element.append(math_copy)
+                            new_para._element.append(math_copy)
                         else:
                             if part:
-                                run = para.add_run(part)
+                                run = new_para.add_run(part)
                                 if text_color:
                                     run.font.color.rgb = text_color
 
         def _process_container_bilingual(container, prefix):
-            for i, para in enumerate(container.paragraphs):
+            # Iterate over a copy of the list because we are modifying it (adding paragraphs)
+            for i, para in enumerate(list(container.paragraphs)):
                 _process_paragraph_bilingual(para, f"{prefix}p_{i}")
             
             for t_idx, table in enumerate(container.tables):

@@ -134,6 +134,13 @@ class TranslationWorkflow:
         if re.match(r'^[\d\.\,\%\-\+\=\/\(\)\[\]\s]+$', text): return True
         return False
 
+    def _get_lang_rules(self, target_lang: str) -> str:
+        rules = ""
+        # Russian uses comma for decimals
+        if any(x in target_lang.lower() for x in ["russian", "ru", "俄语"]):
+            rules += "\n7. Number Formatting: Use comma ',' for decimals (e.g. 0.008 -> 0,008). CRITICAL: Do NOT change dots '.' in serial numbers, section numbers (e.g. 1.1, 2.1.3), version numbers, or model codes."
+        return rules
+
     def run(self, segments: List[TranslationSegment], source_lang: str = "auto", target_lang: str = "Chinese") -> Tuple[List[WorkflowResult], Dict]:
         self._load_cache()
         results_map: Dict[str, WorkflowResult] = {
@@ -268,7 +275,8 @@ class TranslationWorkflow:
                     self._optimize_task, 
                     results_map[seg.id].original, 
                     results_map[seg.id].translation_a, 
-                    results_map[seg.id].eval_a.suggestions
+                    results_map[seg.id].eval_a.suggestions,
+                    target_lang
                 )
                 future_to_seg[future] = seg
 
@@ -357,7 +365,18 @@ Model C Translation ({target_lang}): {trans_c}
  
 Provide a score (0-10) for each dimension and suggestions for improvement for BOTH models.
 IMPORTANT: Provide suggestions in Chinese.
-CRITICAL: Verify that the translation is indeed in {target_lang}. If a translation is identical to the Original (and the Original is not just a number/symbol/proper noun), or if it is NOT in {target_lang}, it is a FAILURE. Give it a score of 0 for Accuracy and Completeness, and note "Untranslated" or "Wrong Language" in suggestions.
+
+CRITICAL: Verify the translation status.
+1. Check if the Translation is identical to the Original.
+   - If YES, and the Original is NOT just numbers/symbols/proper nouns/codes, then it is a FAILURE (Untranslated). Score 0 for Accuracy and Completeness.
+   - If YES, and the Original IS just numbers/symbols/codes/model numbers (e.g. "MTENTU-JKBG-2505"), it is acceptable and should receive a high score if correct.
+2. Check if the Translation is in {target_lang}.
+   - If NO, it is a FAILURE (Wrong Language). Score 0 for Accuracy and Completeness.
+   - Note: The translation may contain numbers or symbols from the original, which is fine as long as the text parts are translated.
+3. Check Number Formatting:{self._get_lang_rules(target_lang)}
+   - If the translation violates these rules (e.g. wrong decimal separator for {target_lang}), penalize Accuracy and Fluency.
+
+If it is NOT a failure, evaluate the quality normally.
 
 Return JSON format: 
 {{
@@ -414,13 +433,18 @@ Return JSON format:
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def _translate_task(self, segment: TranslationSegment, source_lang: str, target_lang: str) -> Tuple[str, GenerationResult, str, str]:
         source_desc = f" from {source_lang}" if source_lang != "auto" else ""
-        prompt = f"""Translate the following text{source_desc} to {target_lang}. Maintain formatting.
-IMPORTANT: Keep any {{{{MATH_N}}}} placeholders unchanged in the translation.
-Do NOT add any new {{{{MATH_N}}}} placeholders if they are not in the original text.
-CRITICAL: You MUST translate the text. Do NOT return the original text. If you return the original text, it is considered a failure.
-
-Text: {segment.original_text}"""
-        result = self.translator.generate(prompt)
+        system_prompt = f"""You are a professional translator.
+Task: Translate the user's text{source_desc} to {target_lang}.
+Rules:
+1. Maintain all formatting.
+2. Keep any {{{{MATH_N}}}} placeholders unchanged. Do NOT add new ones.
+3. Return ONLY the translated text. Do NOT include the original text, explanations, or notes.
+4. If the text is already in {target_lang}, return it as is.
+5. CRITICAL: The target language is {target_lang}. Do NOT translate to English unless {target_lang} is English.
+6. Do NOT translate or transliterate alphanumeric codes, model numbers, or technical identifiers (e.g. keep "STR-1650", "RS8-500" as is).{self._get_lang_rules(target_lang)}
+"""
+        user_prompt = f"{segment.original_text}"
+        result = self.translator.generate(user_prompt, system_prompt=system_prompt)
         text = result.text
         
         # Post-process to remove hallucinated placeholders
@@ -439,7 +463,8 @@ Text: {segment.original_text}"""
 
         text = re.sub(r'\{\{MATH_(\d+)\}\}', lambda m: m.group(0) if m.group(0) in segment.math_elements else m.group(1), text)
         
-        return text, result, prompt, result.text
+        full_prompt = f"System: {system_prompt}\nUser: {user_prompt}"
+        return text, result, full_prompt, result.text
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def _evaluate_task(self, original: str, translation: str, source_lang: str, target_lang: str) -> Tuple[EvaluationResult, GenerationResult, str, str]:
@@ -449,7 +474,18 @@ Translation ({target_lang}): {translation}
 
 Provide a score (0-10) for each dimension and suggestions for improvement.
 IMPORTANT: Provide suggestions in Chinese.
-CRITICAL: Verify that the translation is indeed in {target_lang}. If the Translation is identical to the Original (and the Original is not just a number/symbol/proper noun), or if it is NOT in {target_lang}, it is a FAILURE. Give it a score of 0 for Accuracy and Completeness, and note "Untranslated" or "Wrong Language" in suggestions.
+
+CRITICAL: Verify the translation status.
+1. Check if the Translation is identical to the Original.
+   - If YES, and the Original is NOT just numbers/symbols/proper nouns/codes, then it is a FAILURE (Untranslated). Score 0 for Accuracy and Completeness.
+   - If YES, and the Original IS just numbers/symbols/codes/model numbers (e.g. "MTENTU-JKBG-2505"), it is acceptable and should receive a high score if correct.
+2. Check if the Translation is in {target_lang}.
+   - If NO, it is a FAILURE (Wrong Language). Score 0 for Accuracy and Completeness.
+   - Note: The translation may contain numbers or symbols from the original, which is fine as long as the text parts are translated.
+3. Check Number Formatting:{self._get_lang_rules(target_lang)}
+   - If the translation violates these rules (e.g. wrong decimal separator for {target_lang}), penalize Accuracy and Fluency.
+
+If it is NOT a failure, evaluate the quality normally.
 
 Return JSON format: 
 {{
@@ -464,17 +500,21 @@ Return JSON format:
         return self._parse_evaluation(result.text), result, prompt, result.text
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-    def _optimize_task(self, original: str, translation: str, suggestions: str) -> Tuple[str, GenerationResult, str, str]:
-        prompt = f"""Optimize the translation based on the suggestions.
-Original: {original}
-Current Translation: {translation}
-Suggestions: {suggestions}
-
-IMPORTANT: Keep any {{{{MATH_N}}}} placeholders unchanged.
-Do NOT add any new {{{{MATH_N}}}} placeholders.
-If the suggestions indicate no changes are needed, or if the Current Translation is already correct/optimal, return the Current Translation exactly.
-CRITICAL: If the Current Translation is identical to the Original, you MUST translate it now.
-Do NOT return an error message or explanation. Return ONLY the optimized translation text.
+    def _optimize_task(self, original: str, translation: str, suggestions: str, target_lang: str) -> Tuple[str, GenerationResult, str, str]:
+        system_prompt = f"""You are a translation optimizer.
+Task: Improve the translation based on the provided suggestions.
+Target Language: {target_lang}
+Rules:
+1. Keep any {{{{MATH_N}}}} placeholders unchanged.
+2. Return ONLY the optimized translation text. Do NOT return explanations or the original text.
+3. If no changes are needed, return the Current Translation exactly.
+4. CRITICAL: Ensure the result is in {target_lang}. Do NOT translate to English.
+5. Do NOT translate or transliterate alphanumeric codes, model numbers, or technical identifiers.{self._get_lang_rules(target_lang)}
 """
-        result = self.optimizer.generate(prompt)
-        return result.text, result, prompt, result.text
+        user_prompt = f"""Original: {original}
+Current Translation: {translation}
+Suggestions: {suggestions}"""
+        
+        result = self.optimizer.generate(user_prompt, system_prompt=system_prompt)
+        full_prompt = f"System: {system_prompt}\nUser: {user_prompt}"
+        return result.text, result, full_prompt, result.text

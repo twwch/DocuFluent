@@ -10,8 +10,54 @@ A Python SDK for translating Word documents (`.docx`) using a multi-model workfl
     - **Model C**: Optimization based on evaluation
     - **Selection**: Automatically selects the best translation based on scores.
 - **Format Preservation**: Preserves paragraph styles, tables, and formulas.
+- **Strict Language Enforcement**: Prevents accidental translation to English and ensures strict adherence to the target language.
+- **Model Number Preservation**: Automatically detects and preserves alphanumeric codes and model numbers (e.g., "STR-1650").
 - **Comprehensive Reporting**: Generates Excel and PDF reports with detailed evaluation metrics.
-- **Bilingual Output**: Generates a bilingual document (Original + Translation).
+- **Bilingual Output**: Generates a bilingual document (Original + Translation) with preserved indentation and formatting.
+
+## Workflow Overview
+
+```mermaid
+graph TD
+    Start[Start: Input Document] --> Extract[Extract Segments]
+    Extract --> Stage1[Stage 1: Initial Translation (Model A)]
+    Stage1 --> CheckSimple{Is Simple Segment?}
+    CheckSimple -- Yes --> Skip[Skip Translation]
+    CheckSimple -- No --> CheckCache{In Cache?}
+    CheckCache -- Yes --> UseCache[Use Cached Translation]
+    CheckCache -- No --> Translate[Call Model A]
+    Translate --> Stage1_5[Stage 1.5: Repair Checks]
+    UseCache --> Stage1_5
+    
+    Stage1_5 --> CheckFail{Translation == Original?}
+    CheckFail -- Yes --> Repair[Retry Translation]
+    CheckFail -- No --> Stage2
+    Repair --> Stage2[Stage 2: Evaluation 1 (Model B)]
+    Skip --> Stage2
+    
+    Stage2 --> EvalA[Evaluate Model A]
+    EvalA --> Stage3[Stage 3: Optimization (Model C)]
+    
+    Stage3 --> CheckScore{Score >= 9.5?}
+    CheckScore -- Yes --> SkipOpt[Skip Optimization]
+    CheckScore -- No --> Optimize[Call Model C with Suggestions]
+    
+    SkipOpt --> Stage4
+    Optimize --> Stage4[Stage 4: Comparative Evaluation (Model B)]
+    
+    Stage4 --> EvalComp[Evaluate A vs C]
+    EvalComp --> Stage5[Stage 5: Selection]
+    
+    Stage5 --> Select{Score C > Score A?}
+    Select -- Yes --> FinalC[Select Model C]
+    Select -- No --> FinalA[Select Model A]
+    
+    FinalC --> Output[Generate Documents & Reports]
+    FinalA --> Output
+    
+    style Start fill:#f9f,stroke:#333,stroke-width:2px
+    style Output fill:#f9f,stroke:#333,stroke-width:2px
+```
 
 ## Installation
 
@@ -73,20 +119,22 @@ from translation_sdk.main import TranslationSDK
 
 # Initialize SDK with specific configurations for each model
 # This allows using different providers/models for each step
+# Initialize SDK with specific configurations for each model
+# This allows using different providers/models for each step
 sdk = TranslationSDK(
-    config_a={
+    translation_config={
         "provider": "openai",
         "api_key": "key-for-provider-1",
         "base_url": "https://api.provider1.com/v1",
         "model": "model-name-1"
     },
-    config_b={
+    evaluation_config={
         "provider": "openai",
         "api_key": "key-for-provider-2",
         "base_url": "https://api.provider2.com/v1",
         "model": "model-name-2"
     },
-    config_c={
+    optimization_config={
         "provider": "azure",
         "api_key": "azure-key",
         "base_url": "https://your-resource.openai.azure.com/",
@@ -104,6 +152,26 @@ sdk.translate_document(
 )
 ```
 
+### Regenerating Documents
+
+If you need to make manual corrections, you can edit the generated Excel report (`{filename}_report.xlsx`) and then regenerate the documents.
+
+1.  Open the Excel report.
+2.  (Optional) Add a column named `final_translation` with your corrected text.
+3.  Run the regeneration script:
+
+```bash
+uv run python regenerate_docs.py \
+    --input-docx "path/to/original.docx" \
+    --input-excel "path/to/edited_report.xlsx" \
+    --output-dir "output_folder"
+```
+
+This will generate:
+- `{filename}_regenerated_translated.docx`
+- `{filename}_regenerated_bilingual.docx`
+
+
 ## Output Files
 
 The SDK generates the following files in the output directory:
@@ -112,10 +180,13 @@ The SDK generates the following files in the output directory:
 2.  `{filename}_bilingual.docx`: A document with both original and translated text.
 3.  `{filename}_report.xlsx`: An Excel file containing detailed scores for each segment across 5 dimensions.
 4.  `{filename}_report.pdf`: A PDF summary of the translation quality.
+5.  `{filename}_usage.json`: Token usage statistics for the translation task.
+6.  `{filename}_model_mapping.json`: Mapping of model aliases (A, B, C) to actual model names used.
+7.  `{filename}_results.json`: Full detailed results including all intermediate steps and raw LLM responses.
 
 ## Evaluation Dimensions
 
-The translation is evaluated on 5 dimensions (0-100 score):
+The translation is evaluated on 5 dimensions (0-10 score):
 1.  **Accuracy**: How accurately the meaning is conveyed.
 2.  **Fluency**: How natural the translation sounds.
 3.  **Consistency**: Consistency of terminology and style.
