@@ -110,6 +110,39 @@ uv run python -m src.translation_sdk.main input.docx \
 - `--source-lang`: Source language (default: `auto`).
 - `--target-lang`: Target language (default: `Chinese`).
 
+### Quick Start with Configuration File
+
+For easier usage, you can configure your models in `model_config.json` and use the `translate.py` script.
+
+1.  **Configure Models**: Create or edit `model_config.json`:
+    ```json
+    {
+        "translation_config": {
+            "provider": "openai",
+            "api_key": "sk-...",
+            "base_url": "https://api.openai.com/v1",
+            "model": "gpt-3.5-turbo"
+        },
+        "evaluation_config": {
+            "provider": "openai",
+            "api_key": "sk-...",
+            "base_url": "https://api.openai.com/v1",
+            "model": "gpt-4"
+        },
+        "optimization_config": {
+            "provider": "openai",
+            "api_key": "sk-...",
+            "base_url": "https://api.openai.com/v1",
+            "model": "gpt-4"
+        }
+    }
+    ```
+
+2.  **Run Translation**:
+    ```bash
+    uv run python translate.py --input-file "path/to/document.docx" --target-lang "Chinese"
+    ```
+
 ### Python SDK
 
 You can also use the SDK in your Python code.
