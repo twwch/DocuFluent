@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import logging
-from src.translation_sdk.document import DocumentProcessor
+from src.docu_fluent.document import DocumentProcessor
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s')

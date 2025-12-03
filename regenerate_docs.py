@@ -2,7 +2,7 @@ import argparse
 import pandas as pd
 import os
 import sys
-from src.translation_sdk.document import DocumentProcessor, TranslationSegment
+from src.docu_fluent.document import DocumentProcessor, TranslationSegment
 
 def regenerate_documents(input_docx: str, input_excel: str, output_dir: str):
     print(f"Loading original document: {input_docx}")

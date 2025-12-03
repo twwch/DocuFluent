@@ -2,7 +2,7 @@ import gradio as gr
 import os
 import json
 from datetime import datetime
-from .main import TranslationSDK
+from .sdk import TranslationSDK
 
 def create_interface():
     # Load default config for initial values

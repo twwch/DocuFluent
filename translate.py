@@ -1,7 +1,7 @@
 import os
 import argparse
 from docx import Document
-from src.translation_sdk.main import TranslationSDK, launch_ui
+from src.docu_fluent.cli import TranslationSDK, launch_ui
 
 def verify_output(output_dir, base_name):
     print(f"Verifying output in {output_dir}...")

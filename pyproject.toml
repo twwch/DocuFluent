@@ -34,4 +34,4 @@ build-backend = "hatchling.build"
 source = "vcs"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/translation_sdk"]
+packages = ["src/docu_fluent"]

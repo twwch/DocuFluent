@@ -95,7 +95,7 @@ uv sync
 export OPENAI_API_KEY="your-api-key"
 
 # 使用 Azure OpenAI 运行翻译
-uv run python -m src.translation_sdk.main input.docx \
+uv run python -m docu_fluent input.docx \
     --output-dir output \
     --provider azure \
     --base-url https://your-resource.openai.azure.com/ \
@@ -121,6 +121,7 @@ uv run python -m src.translation_sdk.main input.docx \
 - `--model-optimization`: 优化模型/部署。
 - `--source-lang`: 源语言 (默认: `auto`)。
 - `--target-lang`: 目标语言 (默认: `Chinese`)。
+- `--config`: JSON 配置文件路径 (例如 `model_config.json`)。如果提供，将忽略命令行中的模型参数。
 
 ### 使用配置文件快速开始
 
@@ -158,7 +159,7 @@ uv run python -m src.translation_sdk.main input.docx \
 
 2.  **运行翻译**:
     ```bash
-    uv run python translate.py --input-file "path/to/document.docx" --target-lang "Chinese"
+    uv run python -m docu_fluent input.docx --config model_config.json --target-lang "Chinese"
     ```
 
 ### Web 界面 (GUI)
@@ -169,9 +170,9 @@ uv run python -m src.translation_sdk.main input.docx \
 ```bash
 # 使用测试脚本
 uv run python translate.py --gui
-
-# 或者使用主 SDK 模块
-uv run python -m src.translation_sdk.main --gui
+ 
+# 或者使用主 SDK 模块 (如果已安装)
+uv run python -m docu_fluent --gui
 ```
 
 **功能:**
@@ -188,7 +189,7 @@ uv run python -m src.translation_sdk.main --gui
 你也可以在 Python 代码中使用 SDK。
 
 ```python
-from translation_sdk.main import TranslationSDK
+from docu_fluent.sdk import TranslationSDK
 
 # 初始化 SDK，为每个模型配置特定的参数
 # 这允许在每个步骤使用不同的提供商/模型
@@ -266,9 +267,6 @@ SDK 在输出目录中生成以下文件:
 
 ## 许可协议 (License)
 
-本项目采用 **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** 许可协议。
-
-- **非商业用途**: 您可以自由使用、修改和分发本软件用于非商业目的。
-- **商业用途**: 本软件的商业使用需要作者的明确授权。如需商业许可，请联系作者。
+本项目采用 **GNU Affero General Public License v3.0 (AGPLv3)** 许可协议。
 
 详情请参阅 [LICENSE](LICENSE) 文件。

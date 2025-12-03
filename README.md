@@ -95,7 +95,7 @@ You can use the SDK directly from the command line.
 export OPENAI_API_KEY="your-api-key"
 
 # Run translation with Azure OpenAI
-uv run python -m src.translation_sdk.main input.docx \
+uv run python -m docu_fluent input.docx \
     --output-dir output \
     --provider azure \
     --base-url https://your-resource.openai.azure.com/ \
@@ -121,6 +121,7 @@ uv run python -m src.translation_sdk.main input.docx \
 - `--model-optimization`: Model/Deployment for optimization.
 - `--source-lang`: Source language (default: `auto`).
 - `--target-lang`: Target language (default: `Chinese`).
+- `--config`: Path to a JSON configuration file (e.g., `model_config.json`). If provided, model arguments are ignored.
 
 ### Quick Start with Configuration File
 
@@ -158,7 +159,7 @@ For easier usage, you can configure your models in `model_config.json` and use t
 
 2.  **Run Translation**:
     ```bash
-    uv run python translate.py --input-file "path/to/document.docx" --target-lang "Chinese"
+    uv run python -m docu_fluent input.docx --config model_config.json --target-lang "Chinese"
     ```
 
 ### Web Interface (GUI)
@@ -170,8 +171,8 @@ You can launch a user-friendly web interface to run translations without using t
 # Using the test script
 uv run python translate.py --gui
 
-# OR using the main SDK module
-uv run python -m src.translation_sdk.main --gui
+# OR using the main SDK module (if installed)
+uv run python -m docu_fluent --gui
 ```
 
 **Features:**
@@ -188,7 +189,7 @@ uv run python -m src.translation_sdk.main --gui
 You can also use the SDK in your Python code.
 
 ```python
-from translation_sdk.main import TranslationSDK
+from docu_fluent.sdk import TranslationSDK
 
 # Initialize SDK with specific configurations for each model
 # This allows using different providers/models for each step
@@ -268,9 +269,6 @@ The translation is evaluated on 5 dimensions (0-10 score):
 
 ## License
 
-This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** license.
-
-- **Non-Commercial Use**: You are free to use, modify, and distribute this software for non-commercial purposes.
-- **Commercial Use**: Commercial use of this software requires explicit authorization from the author. Please contact the author for commercial licensing inquiries.
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**.
 
 See the [LICENSE](LICENSE) file for details.
