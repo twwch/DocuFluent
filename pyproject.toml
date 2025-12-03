@@ -23,7 +23,8 @@ dependencies = [
     "tenacity>=9.1.2",
     "gradio>=4.26.0",
     "requests>=2.32.3",
-    "mammoth>=1.6.0"
+    "mammoth>=1.6.0",
+    "rich>=13.7.0"
 ]
 
 [build-system]

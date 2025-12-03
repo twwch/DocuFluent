@@ -12,3 +12,9 @@ output*
 model_config.json
 
 translation_cache.json
+
+benchmark_test_cases.json
+
+test_cases.sh
+
+benchmark_report.pdf
