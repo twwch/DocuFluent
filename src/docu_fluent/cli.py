@@ -3,10 +3,10 @@ import argparse
 from .sdk import TranslationSDK
 from .utils import setup_logging
 
-def launch_ui():
+def launch_ui(config_path=None):
     """Launch the Gradio User Interface."""
     from .ui import create_interface
-    demo = create_interface()
+    demo = create_interface(config_path=config_path)
     demo.launch()
 
 def main():
@@ -31,7 +31,7 @@ def main():
     args = parser.parse_args()
     
     if args.gui:
-        launch_ui()
+        launch_ui(config_path=args.config)
         return
 
     if not args.input_file:

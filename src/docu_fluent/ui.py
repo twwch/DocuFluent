@@ -4,13 +4,20 @@ import json
 from datetime import datetime
 from .sdk import TranslationSDK
 
-def create_interface():
+def create_interface(config_path=None):
     # Load default config for initial values
-    try:
-        with open("model_config.json", "r") as f:
-            default_config_str = f.read()
-    except:
-        default_config_str = "{}"
+    default_config_str = "{}"
+    
+    # Priority: 1. config_path argument, 2. "model_config.json" in current dir
+    path_to_load = config_path if config_path else "model_config.json"
+    
+    if path_to_load and os.path.exists(path_to_load):
+        try:
+            with open(path_to_load, "r") as f:
+                default_config_str = f.read()
+        except Exception as e:
+            print(f"Warning: Failed to load config from {path_to_load}: {e}")
+            default_config_str = "{}"
 
     def process_file(file_obj, source_lang, target_lang, config_json, progress=gr.Progress()):
         if not file_obj:

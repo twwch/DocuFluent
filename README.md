@@ -78,7 +78,7 @@ Alternatively, for development:
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd translation-sdk
+cd DocuFluent
  
 # Install dependencies
 uv sync

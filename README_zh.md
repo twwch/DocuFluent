@@ -78,7 +78,7 @@ uv pip install docu-fluent
 ```bash
 # 克隆仓库
 git clone <repository-url>
-cd translation-sdk
+cd DocuFluent
 
 # 安装依赖
 uv sync
