@@ -17,4 +17,6 @@ benchmark_test_cases.json
 
 test_cases.sh
 
+test_token.sh
+
 benchmark_report.pdf
