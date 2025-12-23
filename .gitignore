@@ -19,4 +19,7 @@ test_cases.sh
 
 test_token.sh
 
+
+run.sh
+
 benchmark_report.pdf

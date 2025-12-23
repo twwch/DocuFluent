@@ -126,13 +126,14 @@ class TranslationWorkflow:
             logger.warning(f"Failed to save cache: {e}")
 
     def _is_simple_segment(self, text: str) -> bool:
-        """Check if segment is simple (number, symbol, placeholder) and shouldn't be processed."""
+        """Check if segment is simple (number, symbol, placeholder, punctuation) and shouldn't be processed."""
         text = text.strip()
         if not text: return True
         # Check if it's just a placeholder
         if re.match(r'^\{\{MATH_\d+\}\}$', text): return True
-        # Check if it's just a number or simple symbol
-        if re.match(r'^[\d\.\,\%\-\+\=\/\(\)\[\]\s]+$', text): return True
+        # Check if it's just numbers, symbols, OR punctuation only
+        # This includes things like "-", "...", "!!!", "4.1.2", etc.
+        if re.match(r'^[\d\.\,\%\-\+\=\/\(\)\[\]\s«»""\'\'!?;:¿¡*&#@^_~`|\\<>]+$', text): return True
         return False
 
     def _get_lang_rules(self, target_lang: str) -> str:
@@ -260,11 +261,16 @@ class TranslationWorkflow:
         with ThreadPoolExecutor(max_workers=workers_eval1) as executor:
             future_to_seg = {}
             for seg in segments:
-                # Skip if skipped or cached in Stage 1 (Optional: could re-eval cached, but let's save tokens)
+                # Skip if skipped or cached in Stage 1
                 if results_map[seg.id].selected_model in ["Skipped (Simple)"]:
                     results_map[seg.id].eval_a = EvaluationResult(10,10,10,10,10,"Simple segment, no evaluation needed.")
                     continue
                 
+                # Bypass evaluation if same language
+                if source_lang.lower() == target_lang.lower() and source_lang != "auto":
+                    results_map[seg.id].eval_a = EvaluationResult(10,10,10,10,10,"Source and Target languages are the same.")
+                    continue
+
                 future = executor.submit(self._evaluate_task, results_map[seg.id].original, results_map[seg.id].translation_a, source_lang, target_lang)
                 future_to_seg[future] = seg
 
@@ -389,31 +395,34 @@ class TranslationWorkflow:
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def _evaluate_comparative_task(self, original: str, trans_a: str, trans_c: str, source_lang: str, target_lang: str) -> Tuple[EvaluationResult, EvaluationResult, GenerationResult, str, str]:
-        prompt = f"""Evaluate the following two translations from {source_lang} to {target_lang} on 5 dimensions: Accuracy, Fluency, Consistency, Terminology Accuracy, Completeness.
+        source_detect_instr = f"Identify the source language of the 'Original' text (currently indicated as '{source_lang}')." if source_lang == "auto" else f"The source language is {source_lang}."
+        prompt = f"""Evaluate the two translations provided below.
  
-Original ({source_lang}): {original}
+Context:
+- {source_detect_instr}
+- The target language is {target_lang}.
  
-Model A Translation ({target_lang}): {trans_a}
+Content to Evaluate:
+Original: {original}
+Model A Translation: {trans_a}
+Model C Translation: {trans_c}
  
-Model C Translation ({target_lang}): {trans_c}
+Evaluation Dimensions (0-10): Accuracy, Fluency, Consistency, Terminology Accuracy, Completeness.
  
-Provide a score (0-10) for each dimension and suggestions for improvement for BOTH models.
-IMPORTANT: Provide suggestions in Chinese.
-
-CRITICAL: Verify the translation status.
-1. Check if the Translation is identical to the Original.
-   - If YES, and the Original is NOT just numbers/symbols/proper nouns/codes, then it is a FAILURE (Untranslated). Score 0 for Accuracy and Completeness.
-   - If YES, and the Original IS just numbers/symbols/codes/model numbers (e.g. "MTENTU-JKBG-2505"), it is acceptable and should receive a high score if correct.
-2. Check if the Translation is in {target_lang}.
-   - If NO, it is a FAILURE (Wrong Language). Score 0 for Accuracy and Completeness.
-   - Note: The translation may contain numbers or symbols from the original, which is fine as long as the text parts are translated.
-3. Check Number Formatting:{self._get_lang_rules(target_lang)}
-   - If the translation violates these rules (e.g. wrong decimal separator for {target_lang}), penalize Accuracy and Fluency.
-
-If it is NOT a failure, evaluate the quality normally.
-
+CRITICAL RULES for 'Untranslated' or 'Same Language' scenarios:
+1. If the translation is identical to the original:
+   - If the source and target languages are the same (or the content is already in the target language), this is CORRECT. Score 10 for Accuracy.
+   - If the content is a universal code, model number, or technical identifier (e.g., 'MTENTU-JKBG-2505'), this is CORRECT. Score 10 for Accuracy.
+   - If the content SHOULD have been translated but wasn't, it is a FAILURE (Untranslated). Score 0 for Accuracy and Completeness.
+2. Mixed Content: If the translation contains both translated text and original numbers/symbols, evaluate the quality of the translated parts.
+3. Wrong Language: If the translation is in a language other than {target_lang}, score 0 for Accuracy.
+4. Number Formatting:{self._get_lang_rules(target_lang)}
+ 
+Identify the source language first, then provide a score (0-10) for each dimension and suggestions for improvement (in Chinese).
+ 
 Return JSON format: 
 {{
+    "detected_source_lang": "<string>",
     "model_a": {{
         "accuracy": <int>, 
         "fluency": <int>, 
@@ -502,27 +511,33 @@ Rules:
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def _evaluate_task(self, original: str, translation: str, source_lang: str, target_lang: str) -> Tuple[EvaluationResult, GenerationResult, str, str]:
-        prompt = f"""Evaluate the following translation from {source_lang} to {target_lang} on 5 dimensions: Accuracy, Fluency, Consistency, Terminology Accuracy, Completeness.
-Original ({source_lang}): {original}
-Translation ({target_lang}): {translation}
-
-Provide a score (0-10) for each dimension and suggestions for improvement.
-IMPORTANT: Provide suggestions in Chinese.
-
-CRITICAL: Verify the translation status.
-1. Check if the Translation is identical to the Original.
-   - If YES, and the Original is NOT just numbers/symbols/proper nouns/codes, then it is a FAILURE (Untranslated). Score 0 for Accuracy and Completeness.
-   - If YES, and the Original IS just numbers/symbols/codes/model numbers (e.g. "MTENTU-JKBG-2505"), it is acceptable and should receive a high score if correct.
-2. Check if the Translation is in {target_lang}.
-   - If NO, it is a FAILURE (Wrong Language). Score 0 for Accuracy and Completeness.
-   - Note: The translation may contain numbers or symbols from the original, which is fine as long as the text parts are translated.
-3. Check Number Formatting:{self._get_lang_rules(target_lang)}
-   - If the translation violates these rules (e.g. wrong decimal separator for {target_lang}), penalize Accuracy and Fluency.
-
-If it is NOT a failure, evaluate the quality normally.
-
+        source_detect_instr = f"Identify the source language of the 'Original' text (currently indicated as '{source_lang}')." if source_lang == "auto" else f"The source language is {source_lang}."
+        prompt = f"""Evaluate the translation provided below.
+ 
+Context:
+- {source_detect_instr}
+- The target language is {target_lang}.
+ 
+Content to Evaluate:
+Original: {original}
+Translation: {translation}
+ 
+Evaluation Dimensions (0-10): Accuracy, Fluency, Consistency, Terminology Accuracy, Completeness.
+ 
+CRITICAL RULES for 'Untranslated' or 'Same Language' scenarios:
+1. If the translation is identical to the original:
+   - If the source and target languages are the same (or the content is already in the target language), this is CORRECT. Score 10 for Accuracy.
+   - If the content is a universal code, model number, or technical identifier (e.g., 'MTENTU-JKBG-2505'), this is CORRECT. Score 10 for Accuracy.
+   - If the content SHOULD have been translated but wasn't, it is a FAILURE (Untranslated). Score 0 for Accuracy and Completeness.
+2. Mixed Content: If the translation contains both translated text and original numbers/symbols, evaluate the quality of the translated parts.
+3. Wrong Language: If the translation is in a language other than {target_lang}, score 0 for Accuracy.
+4. Number Formatting:{self._get_lang_rules(target_lang)}
+ 
+Identify the source language first, then provide a score (0-10) for each dimension and suggestions for improvement (in Chinese).
+ 
 Return JSON format: 
 {{
+    "detected_source_lang": "<string>",
     "accuracy": <int>, 
     "fluency": <int>, 
     "consistency": <int>, 
