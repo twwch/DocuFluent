@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--concurrency-eval1", type=int, default=32, help="Concurrency for evaluation 1 (default: 32)")
     parser.add_argument("--concurrency-opt", type=int, default=32, help="Concurrency for optimization (default: 32)")
     parser.add_argument("--config", help="Path to model_config.json")
+    parser.add_argument("--glossary", help="Path to the terminology markdown file")
     
     args = parser.parse_args()
     
@@ -106,7 +107,7 @@ def main():
     
     sdk = TranslationSDK(translation_config, evaluation_config, optimization_config, concurrency_config)
     
-    sdk.translate_document(args.input_file, args.output_dir, source_lang=args.source_lang, target_lang=args.target_lang)
+    sdk.translate_document(args.input_file, args.output_dir, source_lang=args.source_lang, target_lang=args.target_lang, glossary_path=args.glossary)
 
 if __name__ == "__main__":
     main()

@@ -3,6 +3,7 @@ from .document import DocumentProcessor
 from .llm import LLMFactory
 from .workflow import TranslationWorkflow
 from .report import ReportGenerator
+from .utils import parse_glossary
 from loguru import logger
 
 class TranslationSDK:
@@ -10,17 +11,22 @@ class TranslationSDK:
                  translation_config: dict,
                  evaluation_config: dict,
                  optimization_config: dict,
-                 concurrency_config: dict = None):
+                 concurrency_config: dict = None,
+                 glossary: str = ""):
         
         self.translator = LLMFactory.create(**translation_config)
         self.evaluator = LLMFactory.create(**evaluation_config)
         self.optimizer = LLMFactory.create(**optimization_config)
         
-        self.workflow = TranslationWorkflow(self.translator, self.evaluator, self.optimizer, concurrency_config)
+        self.workflow = TranslationWorkflow(self.translator, self.evaluator, self.optimizer, concurrency_config, glossary=glossary)
 
-    def translate_document(self, input_path: str, output_dir: str, source_lang: str = "auto", target_lang: str = "Chinese", progress_callback=None):
+    def translate_document(self, input_path: str, output_dir: str, source_lang: str = "auto", target_lang: str = "Chinese", progress_callback=None, glossary_path: str = None):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
+            
+        if glossary_path:
+            logger.info(f"Loading glossary from {glossary_path}")
+            self.workflow.glossary = parse_glossary(glossary_path)
             
         base_name = os.path.splitext(os.path.basename(input_path))[0]
         

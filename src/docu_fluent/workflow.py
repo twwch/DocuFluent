@@ -62,11 +62,12 @@ class TokenUsage:
         self.total_tokens += other.total_tokens
 
 class TranslationWorkflow:
-    def __init__(self, translator: LLMBase, evaluator: LLMBase, optimizer: LLMBase, concurrency_config: Dict[str, int] = None):
+    def __init__(self, translator: LLMBase, evaluator: LLMBase, optimizer: LLMBase, concurrency_config: Dict[str, int] = None, glossary: str = ""):
         self.translator = translator
         self.evaluator = evaluator
         self.optimizer = optimizer
         self.concurrency_config = concurrency_config or {}
+        self.glossary = glossary
         self.total_usage = TokenUsage()
         self.stage_usage = {
             "translation": TokenUsage(),
@@ -396,11 +397,17 @@ class TranslationWorkflow:
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def _evaluate_comparative_task(self, original: str, trans_a: str, trans_c: str, source_lang: str, target_lang: str) -> Tuple[EvaluationResult, EvaluationResult, GenerationResult, str, str]:
         source_detect_instr = f"Identify the source language of the 'Original' text (currently indicated as '{source_lang}')." if source_lang == "auto" else f"The source language is {source_lang}."
+        
+        glossary_instr = ""
+        if self.glossary:
+            glossary_instr = f"\nTerminology constraints (Must follow):\n{self.glossary}\n"
+
         prompt = f"""Evaluate the two translations provided below.
  
 Context:
 - {source_detect_instr}
 - The target language is {target_lang}.
+{glossary_instr}
  
 Content to Evaluate:
 Original: {original}
@@ -417,6 +424,7 @@ CRITICAL RULES for 'Untranslated' or 'Same Language' scenarios:
 2. Mixed Content: If the translation contains both translated text and original numbers/symbols, evaluate the quality of the translated parts.
 3. Wrong Language: If the translation is in a language other than {target_lang}, score 0 for Accuracy.
 4. Number Formatting:{self._get_lang_rules(target_lang)}
+5. Terminology: If terminology is provided, model must adhere to it strictly. Failure to do so should result in a low Terminology Accuracy score.
  
 Identify the source language first, then provide a score (0-10) for each dimension and suggestions for improvement (in Chinese).
  
@@ -476,6 +484,11 @@ Return JSON format:
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def _translate_task(self, segment: TranslationSegment, source_lang: str, target_lang: str) -> Tuple[str, GenerationResult, str, str]:
         source_desc = f" from {source_lang}" if source_lang != "auto" else ""
+        
+        glossary_instr = ""
+        if self.glossary:
+            glossary_instr = f"\n7. Terminology: Strictly follow these terms:\n{self.glossary}\n"
+
         system_prompt = f"""You are a professional translator.
 Task: Translate the user's text{source_desc} to {target_lang}.
 Rules:
@@ -484,7 +497,7 @@ Rules:
 3. Return ONLY the translated text. Do NOT include the original text, explanations, or notes.
 4. If the text is already in {target_lang}, return it as is.
 5. CRITICAL: The target language is {target_lang}. Do NOT translate to English unless {target_lang} is English.
-6. Do NOT translate or transliterate alphanumeric codes, model numbers, or technical identifiers (e.g. keep "STR-1650", "RS8-500" as is).{self._get_lang_rules(target_lang)}
+6. Do NOT translate or transliterate alphanumeric codes, model numbers, or technical identifiers (e.g. keep "STR-1650", "RS8-500" as is).{self._get_lang_rules(target_lang)}{glossary_instr}
 """
         user_prompt = f"{segment.original_text}"
         result = self.translator.generate(user_prompt, system_prompt=system_prompt)
@@ -512,11 +525,17 @@ Rules:
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def _evaluate_task(self, original: str, translation: str, source_lang: str, target_lang: str) -> Tuple[EvaluationResult, GenerationResult, str, str]:
         source_detect_instr = f"Identify the source language of the 'Original' text (currently indicated as '{source_lang}')." if source_lang == "auto" else f"The source language is {source_lang}."
+        
+        glossary_instr = ""
+        if self.glossary:
+            glossary_instr = f"\nTerminology constraints (Must follow):\n{self.glossary}\n"
+
         prompt = f"""Evaluate the translation provided below.
  
 Context:
 - {source_detect_instr}
 - The target language is {target_lang}.
+{glossary_instr}
  
 Content to Evaluate:
 Original: {original}
@@ -532,6 +551,7 @@ CRITICAL RULES for 'Untranslated' or 'Same Language' scenarios:
 2. Mixed Content: If the translation contains both translated text and original numbers/symbols, evaluate the quality of the translated parts.
 3. Wrong Language: If the translation is in a language other than {target_lang}, score 0 for Accuracy.
 4. Number Formatting:{self._get_lang_rules(target_lang)}
+5. Terminology: If terminology is provided, model must adhere to it strictly. Failure to do so should result in a low Terminology Accuracy score.
  
 Identify the source language first, then provide a score (0-10) for each dimension and suggestions for improvement (in Chinese).
  
@@ -550,6 +570,10 @@ Return JSON format:
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def _optimize_task(self, original: str, translation: str, suggestions: str, target_lang: str) -> Tuple[str, GenerationResult, str, str]:
+        glossary_instr = ""
+        if self.glossary:
+            glossary_instr = f"\n6. Terminology: Strictly follow these terms:\n{self.glossary}\n"
+
         system_prompt = f"""You are a translation optimizer.
 Task: Improve the translation based on the provided suggestions.
 Target Language: {target_lang}
@@ -558,7 +582,7 @@ Rules:
 2. Return ONLY the optimized translation text. Do NOT return explanations or the original text.
 3. If no changes are needed, return the Current Translation exactly.
 4. CRITICAL: Ensure the result is in {target_lang}. Do NOT translate to English.
-5. Do NOT translate or transliterate alphanumeric codes, model numbers, or technical identifiers.{self._get_lang_rules(target_lang)}
+5. Do NOT translate or transliterate alphanumeric codes, model numbers, or technical identifiers.{self._get_lang_rules(target_lang)}{glossary_instr}
 """
         user_prompt = f"""Original: {original}
 Current Translation: {translation}

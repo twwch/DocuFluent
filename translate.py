@@ -35,6 +35,7 @@ def main():
     parser.add_argument("--output-dir", default="output", help="Output directory")
     parser.add_argument("--target-lang", default="Chinese", help="Target language (default: Chinese)")
     parser.add_argument("--gui", action="store_true", help="Launch Gradio GUI")
+    parser.add_argument("--glossary", help="Path to terminology markdown file")
 
     
     args = parser.parse_args()
@@ -55,7 +56,7 @@ def main():
             optimization_config=model_config.get("optimization_config", {}),
             concurrency_config=model_config.get("concurrency_config", {})
         )
-        sdk.translate_document(args.input_file, args.output_dir, target_lang=args.target_lang)
+        sdk.translate_document(args.input_file, args.output_dir, target_lang=args.target_lang, glossary_path=args.glossary)
         
         base_name = os.path.splitext(os.path.basename(args.input_file))[0]
         verify_output(args.output_dir, base_name)
