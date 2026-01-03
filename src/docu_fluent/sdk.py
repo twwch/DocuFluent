@@ -3,7 +3,7 @@ from .document import DocumentProcessor
 from .llm import LLMFactory
 from .workflow import TranslationWorkflow
 from .report import ReportGenerator
-from .utils import parse_glossary
+from .utils import parse_glossary, parse_glossary_text
 from loguru import logger
 
 class TranslationSDK:
@@ -20,11 +20,14 @@ class TranslationSDK:
         
         self.workflow = TranslationWorkflow(self.translator, self.evaluator, self.optimizer, concurrency_config, glossary=glossary)
 
-    def translate_document(self, input_path: str, output_dir: str, source_lang: str = "auto", target_lang: str = "Chinese", progress_callback=None, glossary_path: str = None):
+    def translate_document(self, input_path: str, output_dir: str, source_lang: str = "auto", target_lang: str = "Chinese", progress_callback=None, glossary_path: str = None, glossary_text: str = None):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
             
-        if glossary_path:
+        if glossary_text:
+            logger.info("Using terminology from text input")
+            self.workflow.glossary = parse_glossary_text(glossary_text)
+        elif glossary_path:
             logger.info(f"Loading glossary from {glossary_path}")
             self.workflow.glossary = parse_glossary(glossary_path)
             
