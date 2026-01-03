@@ -96,14 +96,20 @@ def create_interface(config_path=None):
 
     def validate_terminology(text):
         if not text.strip():
-            return "Empty terminology."
+            return "Empty terminology.", []
         
-        parsed = parse_glossary_text(text)
-        if not parsed:
-            return "No valid terms found. Please use markdown table (| Source | Target |) or list (- Source: Target)."
+        raw_lines = len([l for l in text.split("\n") if l.strip()])
+        terms = parse_glossary_text(text)
         
-        lines = parsed.split("\n")
-        return f"Validated: {len(lines)} terms found.\nPreview:\n" + "\n".join(lines[:5]) + ("\n..." if len(lines) > 5 else "")
+        if not terms:
+            return f"No valid terms found among {raw_lines} lines. Please use markdown table (| Source | Target |) or list (- Source: Target).", []
+        
+        unique_count = len(terms)
+        msg = f"Validated: **{unique_count}** unique terms found (from {raw_lines} raw lines)."
+        if unique_count < raw_lines:
+            msg += f" {raw_lines - unique_count} lines were ignored (duplicates, headers, or empty categories)."
+            
+        return msg, terms
 
     with gr.Blocks(title="DocuFluent Translation") as demo:
         gr.Markdown("# DocuFluent Translation System")
@@ -147,13 +153,19 @@ def create_interface(config_path=None):
                             language="markdown", 
                             lines=15
                         )
-                        validate_btn = gr.Button("Validate Format")
-                        validation_output = gr.Markdown("Enter terminology and click validate.")
+                        validate_btn = gr.Button("Validate Format", variant="secondary")
+                        validation_status = gr.Markdown("Please input terminology and click validate.")
+                        terminology_table = gr.Dataframe(
+                            headers=["Source (原文)", "Target (译文)"],
+                            datatype=["str", "str"],
+                            interactive=False,
+                            label="Validated Terminology Preview"
+                        )
                         
                         validate_btn.click(
                             fn=validate_terminology,
                             inputs=[glossary_input],
-                            outputs=[validation_output]
+                            outputs=[validation_status, terminology_table]
                         )
 
                     with gr.TabItem("Settings"):
