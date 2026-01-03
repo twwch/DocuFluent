@@ -1,8 +1,7 @@
 import sys
 import os
 
-# Monkeypatch HfFolder which was removed in huggingface_hub >= 1.0.0
-# Gradio 4.x still expects it.
+# 1. Monkeypatch HfFolder which was removed in huggingface_hub >= 1.0.0
 try:
     import huggingface_hub
     if not hasattr(huggingface_hub, "HfFolder"):
@@ -13,6 +12,18 @@ try:
         mock_hf_folder.delete_token = lambda: None
         huggingface_hub.HfFolder = mock_hf_folder
         sys.modules["huggingface_hub.hf_folder"] = mock_hf_folder
+except Exception:
+    pass
+
+# 2. Monkeypatch gradio_client to fix "TypeError: argument of type 'bool' is not iterable"
+try:
+    import gradio_client.utils
+    original_get_type = gradio_client.utils.get_type
+    def hooked_get_type(schema):
+        if isinstance(schema, bool):
+            return "boolean"
+        return original_get_type(schema)
+    gradio_client.utils.get_type = hooked_get_type
 except Exception:
     pass
 
