@@ -24,19 +24,15 @@ LANG_CHOICES_SOURCE = list(LANG_MAPPING.keys())
 LANG_CHOICES_TARGET = [k for k in LANG_CHOICES_SOURCE if LANG_MAPPING[k] != "auto"]
 
 def create_interface(config_path=None):
-    # Load default config for initial values
-    default_config_str = "{}"
-    
-    # Priority: 1. config_path argument, 2. "model_config.json" in current dir
-    path_to_load = config_path if config_path else "model_config.json"
-    
-    if path_to_load and os.path.exists(path_to_load):
-        try:
-            with open(path_to_load, "r") as f:
-                default_config_str = f.read()
-        except Exception as e:
-            print(f"Warning: Failed to load config from {path_to_load}: {e}")
-            default_config_str = "{}"
+    def load_config():
+        path = config_path if config_path else "model_config.json"
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    return f.read()
+            except Exception as e:
+                print(f"Warning: Failed to load config from {path}: {e}")
+        return "{}"
 
     def process_file(file_obj, source_lang_label, target_lang_label, glossary_text, config_json, progress=gr.Progress()):
         if not file_obj:
@@ -162,7 +158,7 @@ def create_interface(config_path=None):
 
                     with gr.TabItem("Settings"):
                         gr.Markdown("### Configuration (JSON)")
-                        config_input = gr.Code(label="model_config.json", value=default_config_str, language="json", lines=15)
+                        config_input = gr.Code(label="model_config.json", value=load_config, language="json", lines=15)
                         save_btn = gr.Button("Save Settings", variant="secondary")
                         
                         def save_config(config_json):
