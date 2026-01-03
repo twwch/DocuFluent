@@ -7,53 +7,58 @@ def setup_logging(level="INFO"):
     logger.remove()
     logger.add(sys.stderr, level=level)
 
-def parse_glossary_text(content: str) -> str:
+from typing import List, Tuple
+
+def parse_glossary_text(content: str) -> List[Tuple[str, str]]:
     """
-    Parses a markdown glossary string and returns a formatted string of terminology.
+    Parses a markdown glossary string and returns a list of (Source, Target) tuples.
     Supports markdown tables and simple bullet points.
     """
     if not content:
-        return ""
+        return []
     
     terms = []
+    lines = content.split("\n")
     
-    # 1. Try parsing markdown table
-    # Format: | Source | Target |
-    table_matches = re.findall(r'\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|', content)
-    for src, tgt in table_matches:
-        src = src.strip()
-        tgt = tgt.strip()
-        # Exclude headers and separators
-        if src and tgt and src.lower() not in ["source", "original"] and not re.match(r'^-+$', src) and not re.match(r'^[:\-|\s]+$', src):
-            terms.append(f"{src} -> {tgt}")
-    
-    # 2. Try parsing bullet points
-    # Format: - Source: Target OR - Source -> Target
-    # Only match if the target is NOT a table-like separator
-    list_matches = re.findall(r'[-*+]\s+([^:\-\n]+?)\s*(?:->|[:\-])\s*(.+)', content)
-    for src, tgt in list_matches:
-        src = src.strip()
-        tgt = tgt.strip()
-        if src and tgt and not re.match(r'^[:\-|\s]+$', tgt):
-            terms.append(f"{src} -> {tgt}")
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
             
-    if not terms:
-        # If no structured matches, just return the whole content but stripped
-        return content.strip()
-        
-    # Deduplicate and return
+        # 1. Try parsing markdown table row
+        # Format: | Source | Target | ... |
+        if line.startswith("|") and line.endswith("|"):
+            parts = [p.strip() for p in line.split("|") if p.strip()]
+            if len(parts) >= 2:
+                src, tgt = parts[0], parts[1]
+                # Exclude headers and separators
+                if src.lower() not in ["source", "original", "原文"] and not re.match(r'^[:\-|\s]+$', src):
+                    terms.append((src, tgt))
+            continue
+
+        # 2. Try parsing bullet points or lines
+        # Format: - Source: Target OR - Source -> Target
+        list_match = re.match(r'^(?:[-*+]\s+)?([^:\-\n]+?)\s*(?:->|[:\-])\s*(.+)$', line)
+        if list_match:
+            src, tgt = list_match.groups()
+            src = src.strip()
+            tgt = tgt.strip()
+            if src and tgt and not re.match(r'^[:\-|\s]+$', tgt):
+                terms.append((src, tgt))
+                
+    # Deduplicate while preserving order
     seen = set()
     unique_terms = []
-    for t in terms:
-        if t not in seen:
-            unique_terms.append(t)
-            seen.add(t)
+    for src, tgt in terms:
+        if (src, tgt) not in seen:
+            unique_terms.append((src, tgt))
+            seen.add((src, tgt))
     
-    return "\n".join(unique_terms)
+    return unique_terms
 
 def parse_glossary(file_path: str) -> str:
     """
-    Parses a markdown glossary file and returns a formatted string of terminology.
+    Parses a markdown glossary file and returns a formatted string of terminology for LLM.
     """
     if not file_path or not os.path.exists(file_path):
         return ""
@@ -61,7 +66,8 @@ def parse_glossary(file_path: str) -> str:
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
-        return parse_glossary_text(content)
+        terms = parse_glossary_text(content)
+        return "\n".join([f"{src} -> {tgt}" for src, tgt in terms])
     except Exception as e:
         logger.error(f"Failed to parse glossary {file_path}: {e}")
         return ""

@@ -26,7 +26,8 @@ class TranslationSDK:
             
         if glossary_text:
             logger.info("Using terminology from text input")
-            self.workflow.glossary = parse_glossary_text(glossary_text)
+            terms = parse_glossary_text(glossary_text)
+            self.workflow.glossary = "\n".join([f"{src} -> {tgt}" for src, tgt in terms])
         elif glossary_path:
             logger.info(f"Loading glossary from {glossary_path}")
             self.workflow.glossary = parse_glossary(glossary_path)
