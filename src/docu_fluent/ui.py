@@ -163,6 +163,26 @@ def create_interface(config_path=None):
                     with gr.TabItem("Settings"):
                         gr.Markdown("### Configuration (JSON)")
                         config_input = gr.Code(label="model_config.json", value=default_config_str, language="json", lines=15)
+                        save_btn = gr.Button("Save Settings", variant="secondary")
+                        
+                        def save_config(config_json):
+                            try:
+                                # Validate JSON
+                                data = json.loads(config_json)
+                                path = config_path if config_path else "model_config.json"
+                                with open(path, "w") as f:
+                                    json.dump(data, f, indent=2)
+                                gr.Info(f"Settings successfully saved to {path}!")
+                                return f"Settings saved to {path} at {datetime.now().strftime('%H:%M:%S')}"
+                            except Exception as e:
+                                raise gr.Error(f"Failed to save settings: {e}")
+
+                        save_status = gr.Markdown("")
+                        save_btn.click(
+                            fn=save_config,
+                            inputs=[config_input],
+                            outputs=[save_status]
+                        )
 
         submit_btn.click(
             fn=process_file,
