@@ -304,10 +304,16 @@ class TranslationWorkflow:
                      results_map[seg.id].translation_c = results_map[seg.id].translation_a
                      continue
 
+                # If evaluation failed (model instability), skip optimization and keep original translation
+                if not results_map[seg.id].eval_a:
+                    logger.warning(f"Evaluation missing for {seg.id}, skipping optimization")
+                    results_map[seg.id].translation_c = results_map[seg.id].translation_a
+                    continue
+
                 future = executor.submit(
-                    self._optimize_task, 
-                    results_map[seg.id].original, 
-                    results_map[seg.id].translation_a, 
+                    self._optimize_task,
+                    results_map[seg.id].original,
+                    results_map[seg.id].translation_a,
                     results_map[seg.id].eval_a.suggestions,
                     target_lang
                 )
